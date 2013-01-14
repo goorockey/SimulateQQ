@@ -9,7 +9,8 @@ from StringIO import StringIO
 from urllib import urlencode
 import time, thread
 
-__DEBUG__ = True
+# 调试级
+__DEBUG_LEVEL__ = 2
 
 aid = '1003903'
 r = '0.8833318802393377'
@@ -61,26 +62,26 @@ class SimulateQQ:
     # GET
     def get(self, url, params):
         resp = requests.get(url, params = params, cookies = self.cookies)
-
         self.cookies.update(resp.cookies.get_dict())
+
+        if __DEBUG_LEVEL__ >= 2:
+            print u'===GET请求===，回复:\n%s' % resp.text
+
         return (resp, self.parse_response(resp))
 
     # POST
     def post(self, url, data):
-        data = self.encodePostData(data)
-
         resp = requests.post(url, data = data, headers = headers, cookies = self.cookies)
-
         self.cookies.update(resp.cookies.get_dict())
+
+        if __DEBUG_LEVEL__ >= 2:
+            print u'===POST请求===，回复:\n%s' % resp.text
+
         return resp
     
     # 解析回复信息
     def parse_response(self, r):
         return re.findall(r"'([^']*)'", r.text)
-
-    # 修正urlencode的结果
-    def encodePostData(self, url):
-        return urlencode(url).replace(r'%27', r'%22').replace(r'+', '').replace(r'%3Au', '%3A')
 
     # 检查是否要验证码
     def check(self):
@@ -93,7 +94,7 @@ class SimulateQQ:
         else:
             self.vc = self.getvc()
 
-        if __DEBUG__:
+        if __DEBUG_LEVEL__:
             print u'验证码为', self.vc
             
     # 获取验证码图片
@@ -137,13 +138,6 @@ class SimulateQQ:
 
     # 第二次登录
     def login2(self, psessionid = 'null'):
-#        r = {
-#                'status' : login_status,
-#                'ptwebqq' : self.cookies.get('ptwebqq'),
-#                'passwd_sig' : '',
-#                'clientid' : clientid,
-#                'psessionid' : psessionid,
-#            }
         r = r'{"status" : "%s", "ptwebqq" : "%s", "passwd_sig" : "", "clientid" : "%s", "psessionid" : %s}'  \
                 % (login_status, self.cookies.get("ptwebqq"), clientid, psessionid)
 
@@ -153,7 +147,6 @@ class SimulateQQ:
                 'r' : r
                 }
 
-        #self.rlogin2, resp = self.post(urls['login2'], data)
         self.rlogin2 = self.post(urls['login2'], data)
         resp = self.rlogin2.json()
 
@@ -177,10 +170,18 @@ class SimulateQQ:
 
         # 根据qq的状态发送心跳包
         while 'offline' != self.cur_status:
+
+            if __DEBUG_LEVEL__ >= 2:
+                print u'发送心跳包...'
+
             self.rpoll2 = self.post(urls['poll2'], data)
 
             # 发送发生错误的停止发送
             if (self.rpoll2.status_code != 200):
+
+                if __DEBUG_LEVEL__ >= 2:
+                    print u'发送心跳包失败，返回：%s' % self.rpoll2.text
+
                 break
 
             time.sleep(interval)
