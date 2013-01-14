@@ -1,6 +1,7 @@
 #!/usr/bin/python
 #coding=utf-8
 
+import sys
 from hashlib import md5
 import re
 import requests
@@ -10,7 +11,7 @@ from urllib import urlencode
 import time, thread
 
 # 调试级
-__DEBUG_LEVEL__ = 2
+__DEBUG_LEVEL__ = 1
 
 aid = '1003903'
 r = '0.8833318802393377'
@@ -21,17 +22,28 @@ urls = {
     'login2' : r'http://d.web2.qq.com/channel/login2',
     'poll2' : r'http://d.web2.qq.com/channel/poll2',
     'referer' : r'http://d.web2.qq.com/proxy.html?v=20110331002&callback=1&id=3',
+    'getuinfo' : r'http://s.web2.qq.com/api/get_friend_info2',
+    'getflist' : r'http://s.web2.qq.com/api/get_user_friends2',
+    'getglist' : r'http://s.web2.qq.com/api/get_group_name_list_mask2',
+    'sendmsg' : r'http://d.web2.qq.com/channel/send_buddy_msg2',
 }
 
 vc_image = './vc.jpeg'
 login_status = 'hidden'
 clientid = '10952353'
+poll_interval = 5 # 心跳包发送间隔
 
 headers = {
         r'Referer' : urls['referer'],
         r'Content-Type' : r'application/x-www-form-urlencoded; charset=UTF-8',
         r'User-Agent' : r'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:18.0) Gecko/20100101 Firefox/18.0',
         }
+
+# 打印文档字符串
+def printDocString():
+    if __DEBUG_LEVEL__:
+        print sys._getframe().f_back.f_locals.get('__doc__')
+
 
 class SimulateQQ:
     
@@ -43,9 +55,15 @@ class SimulateQQ:
 
     cur_status = 'offline'
 
+    friend_list = {} # 好友列表
+    group_list = {} # 群组列表
+
+
     def __init__(self, user = '1147285955', pw = ''):
         self.uin = user
         self.pw = pw
+
+        self.login()
 
     def login(self):
         self.check()
@@ -56,15 +74,15 @@ class SimulateQQ:
         if False == self.login2():
             return False
 
-        self.poll2()
+        self.startPoll2()
 
 
     # GET
     def get(self, url, params):
-        resp = requests.get(url, params = params, cookies = self.cookies)
+        resp = requests.get(url, params = params, headers = headers, cookies = self.cookies)
         self.cookies.update(resp.cookies.get_dict())
 
-        if __DEBUG_LEVEL__ >= 2:
+        if __DEBUG_LEVEL__:
             print u'===GET请求===，回复:\n%s' % resp.text
 
         return (resp, self.parse_response(resp))
@@ -74,7 +92,7 @@ class SimulateQQ:
         resp = requests.post(url, data = data, headers = headers, cookies = self.cookies)
         self.cookies.update(resp.cookies.get_dict())
 
-        if __DEBUG_LEVEL__ >= 2:
+        if __DEBUG_LEVEL__:
             print u'===POST请求===，回复:\n%s' % resp.text
 
         return resp
@@ -110,7 +128,6 @@ class SimulateQQ:
         
     # 第一次登录
     def login1(self):
-        login_success = u'登录成功！'
         p = self.encodePassword(self.pw, self.uin, self.vc)
         params = {
                 'aid' : aid,
@@ -134,16 +151,16 @@ class SimulateQQ:
 
         print resp[4]
 
-        return resp[4] == login_success
+        return resp[0] == '0'
 
     # 第二次登录
-    def login2(self, psessionid = 'null'):
-        r = r'{"status" : "%s", "ptwebqq" : "%s", "passwd_sig" : "", "clientid" : "%s", "psessionid" : %s}'  \
-                % (login_status, self.cookies.get("ptwebqq"), clientid, psessionid)
+    def login2(self):
+        r = r'{"status" : "%s", "ptwebqq" : "%s", "passwd_sig" : "", "clientid" : "%s", "psessionid" : null}'  \
+                % (login_status, self.cookies.get("ptwebqq"), clientid)
 
         data = {
                 'clientid' : clientid,
-                'psessionid' : psessionid,
+                'psessionid' : 'null',
                 'r' : r
                 }
 
@@ -165,8 +182,29 @@ class SimulateQQ:
 
             return False
 
-    # 发送心跳包
-    def sendHeartPkt(self, data, interval):
+    def parseHeartPkt(self):
+        '''解析心跳包'''
+
+        r = self.rpoll2.json()
+
+        if 0 == r.get('retcode'):
+
+            res = r.get('result')
+            for item in res:
+
+                poll_type = item.get('poll_type')
+                if 'buddies_status_change' == poll_type:
+
+                    i = item.get('value')
+                    status = i.get('status')
+
+                    if ('offline' == status) and (self.friend_list.get(i.get('uin'))):
+                            del self.friend_list[i.get('uin')]
+                    elif 'online' == status:
+                        pass
+
+    def sendHeartPkt(self, data, interval = poll_interval):
+        '''发送心跳包'''
 
         # 根据qq的状态发送心跳包
         while 'offline' != self.cur_status:
@@ -184,14 +222,17 @@ class SimulateQQ:
 
                 break
 
+            self.parseHeartPkt()
+
             time.sleep(interval)
 
         self.cur_status = 'offline'
 
         print u'下线'
         
-    # 启动发送心跳包
-    def poll2(self):
+    def startPoll2(self):
+        '''启动发送心跳包'''
+
         r = r'{ "ids" : [], "key" : 0, "clientid" : "%s", "psessionid" : "%s" }' \
                 % (clientid, self.psessionid)
 
@@ -201,9 +242,58 @@ class SimulateQQ:
                 'r' : r,
                }
 
-        thread.start_new_thread(self.sendHeartPkt, (data, 2))
+        thread.start_new_thread(self.sendHeartPkt, (data,))
 
         return True
+
+    def getUserInfo(self):
+        '''获取用户信息'''
+
+        params = {
+                    'tuin' : self.uin,
+                    't' : '1358180752388',
+                    'verifysession' : '',
+                    'code' : '',
+                    'vfwebqq' : self.vfwebqq
+                 }
+        
+        self.rgetuinfo, resp = self.get(urls['getuinfo'], params = params)
+
+        # 解析返回信息
+        resp = self.rgetuinfo.json()
+        print resp
+
+        return resp.get('retcode') == 0
+    
+    def getFriendList(self):
+        __doc__ = '''获取好友列表'''
+
+        r = r'{"h":"hello","vfwebqq":"%s"}' % self.vfwebqq
+
+        printDocString()
+
+        self.rgetflist = self.post(urls['getflist'], r)
+
+        # 解析返回信息
+        resp = self.rgetflist.json()
+        self.friend_list = resp.get('result')
+
+        return resp.get('retcode') == 0
+
+    def getGroupList(self):
+        __doc__ = '''获取群组列表'''
+
+        r = r'{"vfwebqq":"%s"}' % self.vfwebqq
+
+        printDocString()
+
+        self.rgetglist = self.post(urls['getglist'], r)
+
+        # 解析返回信息
+        resp = self.rgetglist.json()
+        self.group_list = resp.get('result')
+
+        return resp.get('retcode') == 0
 
     # 下线
     def offline(self):
@@ -237,6 +327,28 @@ class SimulateQQ:
         ret = mymd5(ret + uin2hex(uin))
         ret = mymd5(ret + verifycode.upper())
         return ret
+
+    def sendMsg(self, to, msg):
+        __doc__ = '''发送信息'''
+
+        r = r'{"to":%s,"content":"%s","msg_id":%s,"clientid":"%s", "psessionid":"%s"}'  \
+            % (to, msg, '7450001', clientid, self.psessionid)
+
+        data = {
+                    'clientid' : clientid,
+                    'psessionid' : self.psessionid,
+                    'r' : r
+               }
+
+        printDocString()
+
+        self.rsendmsg = self.post(urls['sendmsg'], data)
+        resp = self.rsendmsg.json()
+
+        print resp.get('result')
+
+        return 0 == resp.get('retcode')
+
 
 if __name__ == '__main__':
     pass
