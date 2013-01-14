@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #coding=utf-8
 
-from md5 import md5
+from hashlib import md5
 import re
 import requests
 from PIL import Image
