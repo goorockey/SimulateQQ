@@ -79,7 +79,12 @@ class SimulateQQ:
 
     # GET
     def get(self, url, params):
-        resp = requests.get(url, params = params, headers = headers, cookies = self.cookies)
+        try:
+            resp = requests.get(url, params = params, headers = headers, cookies = self.cookies)
+        except:
+            print u'发送失败'
+            return 
+
         self.cookies.update(resp.cookies.get_dict())
 
         if __DEBUG_LEVEL__:
@@ -89,7 +94,12 @@ class SimulateQQ:
 
     # POST
     def post(self, url, data):
-        resp = requests.post(url, data = data, headers = headers, cookies = self.cookies)
+        try:
+            resp = requests.post(url, data = data, headers = headers, cookies = self.cookies)
+        except:
+            print u'发送失败'
+            return 
+
         self.cookies.update(resp.cookies.get_dict())
 
         if __DEBUG_LEVEL__:
@@ -149,9 +159,11 @@ class SimulateQQ:
 
         self.rlogin1, resp = self.get(urls['login1'], params = params)
 
-        print resp[4]
-
-        return resp[0] == '0'
+        if resp[0] != '0':
+            print resp[4]
+            return False
+        else:
+            return True
 
     # 第二次登录
     def login2(self):
@@ -174,6 +186,8 @@ class SimulateQQ:
             self.psessionid = resp['result']['psessionid']
 
             self.cur_status = login_status
+
+            print '登录成功'
 
             return True
 
