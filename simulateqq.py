@@ -39,6 +39,13 @@ headers = {
         r'User-Agent' : r'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:18.0) Gecko/20100101 Firefox/18.0',
         }
 
+# 代理
+__USE_PROXY__ = True
+proxies = {
+        "http" : "211.142.236.136:80",
+        }
+
+
 # 打印文档字符串
 def printDocString():
     if __DEBUG_LEVEL__:
@@ -74,13 +81,20 @@ class SimulateQQ:
         if False == self.login2():
             return False
 
+        # 开始发送心跳包
         self.startPoll2()
+
+        # 获取好友列表
+        self.getFriendList()
+
+        # 获取群组列表
+        self.getGroupList()
 
 
     # GET
     def get(self, url, params):
         try:
-            resp = requests.get(url, params = params, headers = headers, cookies = self.cookies)
+            resp = requests.get(url, params = params, headers = headers, cookies = self.cookies, proxies = proxies)
         except:
             print u'发送失败'
             return 
@@ -95,7 +109,7 @@ class SimulateQQ:
     # POST
     def post(self, url, data):
         try:
-            resp = requests.post(url, data = data, headers = headers, cookies = self.cookies)
+            resp = requests.post(url, data = data, headers = headers, cookies = self.cookies, proxies = proxies)
         except:
             print u'发送失败'
             return 
@@ -107,6 +121,35 @@ class SimulateQQ:
 
         return resp
     
+    # 对密码做转换
+    def encodePassword(self, pw, uin, verifycode):
+
+        # Insert '\x'
+        def hexchar2bin(s):
+            return (''.join([ chr(int(i, 16)) for i in re.findall('.{1,2}', s) ]))
+
+        def mymd5(s):
+            return md5(s).hexdigest().upper()
+
+        def uin2hex(uin):
+            maxlen = 16
+
+            # parse number in front
+            uin = re.match('^[0-9]*', uin).group()
+
+            # convert to hex
+            uin = str(hex(int(uin, 10)))[2:]
+
+            uin = uin[:maxlen]
+            uin = (maxlen - len(uin)) * '0' + uin
+
+            return hexchar2bin(uin)
+
+        ret = hexchar2bin(mymd5(pw)) 
+        ret = mymd5(ret + uin2hex(uin))
+        ret = mymd5(ret + verifycode.upper())
+        return ret
+
     # 解析回复信息
     def parse_response(self, r):
         return re.findall(r"'([^']*)'", r.text)
@@ -313,34 +356,6 @@ class SimulateQQ:
     def offline(self):
         self.cur_status = 'offline'
 
-    # 对密码做转换
-    def encodePassword(self, pw, uin, verifycode):
-
-        # Insert '\x'
-        def hexchar2bin(s):
-            return (''.join([ chr(int(i, 16)) for i in re.findall('.{1,2}', s) ]))
-
-        def mymd5(s):
-            return md5(s).hexdigest().upper()
-
-        def uin2hex(uin):
-            maxlen = 16
-
-            # parse number in front
-            uin = re.match('^[0-9]*', uin).group()
-
-            # convert to hex
-            uin = str(hex(int(uin, 10)))[2:]
-
-            uin = uin[:maxlen]
-            uin = (maxlen - len(uin)) * '0' + uin
-
-            return hexchar2bin(uin)
-
-        ret = hexchar2bin(mymd5(pw)) 
-        ret = mymd5(ret + uin2hex(uin))
-        ret = mymd5(ret + verifycode.upper())
-        return ret
 
     def sendMsg(self, to, msg):
         __doc__ = '''发送信息'''
