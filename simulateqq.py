@@ -45,18 +45,18 @@ aid = '1003903'
 r = '0.8833318802393377'
 vc_image = './vc.jpeg'
 login_status = 'online'
-clientid = '10952353'
+clientid = random.randrange(start=10000000, stop=99999999)
 login_sig = 'zFfQ3BaKy016JIUfYjnL7s*IWLsPnBKfg-xOtfC0JR1D8pzrb0SbDnGvE7LtbKwD'
 headers = {
-        r'Referer' : urls['referer'],
-        r'Content-Type' : r'application/x-www-form-urlencoded; charset=UTF-8',
-        r'User-Agent' : r'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:18.0) Gecko/20100101 Firefox/18.0',
+        'Referer' : urls['referer'],
+        'Content-Type' : r'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent' : r'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:18.0) Gecko/20100101 Firefox/18.0',
         }
 
 # 调试级
 __DEBUG_LEVEL__ = 1
 # 心跳包发送间隔, 单位为秒
-poll_interval = 3 
+poll_interval = 2 
 # 是否使用代理
 proxies = {}
 
@@ -360,8 +360,10 @@ class SimulateQQ:
                 if 'message' == poll_type:
                     recvMsg = value.get('content')[1]
 
+                    print '>' * 50
                     print u'收到消息来自 %s 的消息: ' % value.get('from_uin')
                     print recvMsg
+                    print '>' * 50
 
                     self.recent_talk_friend = value.get('from_uin')
 
@@ -370,8 +372,10 @@ class SimulateQQ:
                     if replyMsg:
 
                         if __DEBUG_LEVEL__:
+                            print '<' * 50
                             print u'机器人回复：'
                             print replyMsg
+                            print '<' * 50
 
                         self.reply(msg = replyMsg)
 
@@ -398,32 +402,32 @@ class SimulateQQ:
         return replyMsg
 
 
-    def _sendHeartPkt(self, data, interval = poll_interval):
-        '''发送心跳包'''
+    bSendingPollPke = False
+    def _sendPollPkt(self, data, interval = poll_interval):
+        __doc__ = '''...发送心跳包...'''
 
         # 根据qq的状态发送心跳包
         while 'offline' != self.curStatus:
+            self.bSendingPollPke = True
 
             if __DEBUG_LEVEL__ >= 2:
-                print u'发送心跳包...'
+                printDocString()
 
             self.rPoll2 = self.post(urls['poll2'], data)
 
             # 发送发生错误的停止发送
-            if (self.rPoll2.status_code != 200):
+            if (not self.rPoll2) or self.rPoll2.status_code != 200:
+                    if __DEBUG_LEVEL__ >= 2:
+                        print u'!!!发送心跳包失败!!!'
 
-                if __DEBUG_LEVEL__ >= 2:
-                    print u'发送心跳包失败，返回：%s' % self.rPoll2.text
-
-                break
+                    break
 
             self.parseHeartPkt()
 
             time.sleep(interval)
 
-        self.curStatus = 'offline'
-
-        print u'下线'
+        self.bSendingPollPke = False
+        print u'!!!下线!!!'
         
     def startPoll2(self):
         '''启动发送心跳包'''
@@ -437,7 +441,7 @@ class SimulateQQ:
                 'r' : r,
                }
 
-        thread.start_new_thread(self._sendHeartPkt, (data,))
+        thread.start_new_thread(self._sendPollPkt, (data,))
 
         return True
 
@@ -531,7 +535,7 @@ class SimulateQQ:
     def reply(self, msg = u''):
         return self.sendMsg(to = self.recent_talk_friend, msg = msg)
 
-    def sendMsg(self, to, msg = u'', msg_id = random.randrange(start=9999999)):
+    def sendMsg(self, to, msg = u'', msg_id = random.randrange(start=1000000, stop=9999999)):
         __doc__ = '''发送信息'''
 
         if not to:
@@ -610,3 +614,8 @@ if __name__ == '__main__':
 
     qq = SimulateQQ(cf = cf)
 
+    while True:
+        msg = raw_input()
+        if qq.bSendingPollPke == False or msg == 'q' or msg == 'Q':
+            qq.offline()
+            break
