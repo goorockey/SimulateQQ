@@ -112,10 +112,26 @@ def getCurTimeStamp():
 
 # 转换字符
 rawTable = {
+        '\\' : r'\\\\',
+        '\a' : r'\\a',
+        '\b' : r'\\b',
+        '\c' : r'\\c',
+        '\f' : r'\\f',
         '\n' : r'\\n',
+        '\r' : r'\\r',
         '\t' : r'\\t',
-        '\\' : r'\\',
-        '"'  : r'\"',
+        '\v' : r'\\v',
+        '\"' : r'\\\"',
+        '\0' : r'\\0',
+        '\1' : r'\\1',
+        '\2' : r'\\2',
+        '\3' : r'\\3',
+        '\4' : r'\\4',
+        '\5' : r'\\5',
+        '\6' : r'\\6',
+        '\7' : r'\\7',
+        '\8' : r'\\8',
+        '\9' : r'\\9'
         }
 def convertToRawString(s):
     ret = ''
@@ -362,7 +378,7 @@ class SimulateQQ:
                     recvMsg = value.get('content')[1]
                     print '\n',
                     print '>' * 50
-                    print u'收到消息来自 %s 的消息: ' % value.get('from_uin')
+                    print u'收到消息来自 %s 的消息: ' % str(value.get('from_uin'))
                     print recvMsg
                     print '>' * 50
 
@@ -551,10 +567,16 @@ class SimulateQQ:
             if msg == u'':
                 return True
 
+        # 统一为unicode
+        if not isinstance(msg, unicode):
+            msg = unicode(msg, 'utf-8')
+
         msg = convertToRawString(msg)
 
         r = ur'{"to":%s,"content":"[\"%s\",[\"font\",{\"name\":\"宋体\",\"size\":\"10\",\"style\":[0,0,0],\"color\":\"000000\"}]]","msg_id":%s,"clientid":"%s", "psessionid":"%s"}'  \
             % (to, msg, msg_id, clientid, self.psessionid)
+
+        print u'发送:' + r 
 
         data = {
                     'clientid' : clientid,
@@ -562,15 +584,18 @@ class SimulateQQ:
                     'r' : r
                }
 
-        printDocString()
+        if __DEBUG_LEVEL__ >= 2:
+            printDocString()
 
         self.rsendmsg = self.post(urls['sendmsg'], data)
         if not self.rsendmsg:
             return False
 
         resp = self.rsendmsg.json()
-
-        print u'发送结果:' + resp.get('result')
+        if resp.get('retcode') == 0:
+            print u'发送结果:' + str(resp.get('result'))
+        else:
+            print u'发送信息有错:' + self.rsendmsg.text
 
         return 0 == resp.get('retcode')
 
