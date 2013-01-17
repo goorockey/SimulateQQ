@@ -576,8 +576,6 @@ class SimulateQQ:
         r = ur'{"to":%s,"content":"[\"%s\",[\"font\",{\"name\":\"宋体\",\"size\":\"10\",\"style\":[0,0,0],\"color\":\"000000\"}]]","msg_id":%s,"clientid":"%s", "psessionid":"%s"}'  \
             % (to, msg, msg_id, clientid, self.psessionid)
 
-        print u'发送:' + r 
-
         data = {
                     'clientid' : clientid,
                     'psessionid' : self.psessionid,
@@ -585,6 +583,7 @@ class SimulateQQ:
                }
 
         if __DEBUG_LEVEL__ >= 2:
+            print u'发送:' + r 
             printDocString()
 
         self.rsendmsg = self.post(urls['sendmsg'], data)
