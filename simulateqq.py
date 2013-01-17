@@ -44,7 +44,6 @@ urls = {
 aid = '1003903'
 r = '0.8833318802393377'
 vc_image = './vc.jpeg'
-login_status = 'online'
 clientid = random.randrange(start=10000000, stop=99999999)
 login_sig = 'zFfQ3BaKy016JIUfYjnL7s*IWLsPnBKfg-xOtfC0JR1D8pzrb0SbDnGvE7LtbKwD'
 headers = {
@@ -140,8 +139,9 @@ class SimulateQQ:
     friend_list = {} # 好友列表
     group_list = {} # 群组列表
 
-    curStatus = 'offline'
-    recent_talk_friend = ''
+    login_status = 'online' # 登录时的状态
+    curStatus = 'offline'   # 当前状态
+    recent_talk_friend = '' # 最近聊天的好友
 
     robot = ''
     robotInfo = ''
@@ -150,7 +150,7 @@ class SimulateQQ:
         if cf:
             self.uin = cf.get('account', 'qq')
             self.pw = cf.get('account', 'pw')
-            s = cf.get('account', 'login_status')
+            self.login_status = cf.get('account', 'login_status')
 
             self.robotModule = cf.get('robot', 'robot')
             if self.robotModule:
@@ -160,10 +160,11 @@ class SimulateQQ:
         else:
             self.uin = user
             self.pw = pw
+            self.login_status = s
 
-        self.login(s)
+        self.login()
 
-    def login(self, status):
+    def login(self):
 
         print u'正在登录:%s(%s)' % (self.uin, self.pw)
 
@@ -172,7 +173,7 @@ class SimulateQQ:
         if False == self.login1():
             return False
 
-        if False == self.login2(status):
+        if False == self.login2():
             return False
 
         # 获取用户信息
@@ -304,11 +305,11 @@ class SimulateQQ:
             return True
 
     # 第二次登录
-    def login2(self, status):
+    def login2(self):
         __doc__ = u'第二次登录...'
 
         r = r'{"status" : "%s", "ptwebqq" : "%s", "passwd_sig" : "", "clientid" : "%s", "psessionid" : null}'  \
-                % (status, self.cookies.get("ptwebqq"), clientid)
+                % (self.login_status, self.cookies.get("ptwebqq"), clientid)
 
         data = {
                 'clientid' : clientid,
@@ -330,7 +331,7 @@ class SimulateQQ:
             self.vfwebqq = resp['result']['vfwebqq']
             self.psessionid = resp['result']['psessionid']
 
-            self.curStatus = status
+            self.curStatus = self.login_status
 
             print '登录成功'
 
@@ -364,7 +365,7 @@ class SimulateQQ:
                     print recvMsg
                     print '>' * 50
 
-                    self.recent_talk_friend = value.get('from_uin')
+                    self.recent_talk_friend = str(value.get('from_uin'))
 
                     # 从机器人中获取回复
                     replyMsg = self.getReplyFromRobot(recvMsg)
@@ -398,13 +399,13 @@ class SimulateQQ:
             
         return replyMsg
 
-    bSendingPollPke = False
+    bSendingPollPkt = False
     def _sendPollPkt(self, data, interval = poll_interval):
         __doc__ = '''...发送心跳包...'''
 
         # 根据qq的状态发送心跳包
         while 'offline' != self.curStatus:
-            self.bSendingPollPke = True
+            self.bSendingPollPkt = True
 
             if __DEBUG_LEVEL__ >= 2:
                 printDocString()
@@ -422,7 +423,7 @@ class SimulateQQ:
 
             time.sleep(interval)
 
-        self.bSendingPollPke = False
+        self.bSendingPollPkt = False
         print u'!!!下线!!!'
         
     def startPoll2(self):
@@ -539,7 +540,7 @@ class SimulateQQ:
     
         if msg == u'':
             while True:
-                s = raw_input("Send Message >> ")
+                s = raw_input("Send Message>> ")
                 if s == '':
                     break
 
@@ -611,9 +612,12 @@ if __name__ == '__main__':
     qq = SimulateQQ(cf = cf)
 
     while True:
-        msg = raw_input()
-        if qq.bSendingPollPke == False or msg == 'q' or msg == 'Q':
+        msg = raw_input(qq.recent_talk_friend + ">> ")
+        if qq.bSendingPollPkt == False :
             qq.offline()
             break
 
-        qq.reply(msg=msg)
+        if msg.upper() == 'Q':
+            qq.offline()
+        elif msg.upper() == 'E':
+            qq.reply()
