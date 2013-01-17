@@ -360,6 +360,7 @@ class SimulateQQ:
                 # 收到好友的信息
                 if 'message' == poll_type:
                     recvMsg = value.get('content')[1]
+                    print '\n',
                     print '>' * 50
                     print u'收到消息来自 %s 的消息: ' % value.get('from_uin')
                     print recvMsg
@@ -370,6 +371,7 @@ class SimulateQQ:
                     # 从机器人中获取回复
                     replyMsg = self.getReplyFromRobot(recvMsg)
                     if replyMsg:
+                        print '\n',
                         print '<' * 50
                         print u'机器人回复：'
                         print replyMsg
@@ -619,5 +621,5 @@ if __name__ == '__main__':
 
         if msg.upper() == 'Q':
             qq.offline()
-        elif msg.upper() == 'E':
+        else msg.upper() == 'T':
             qq.reply()
