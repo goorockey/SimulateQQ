@@ -341,7 +341,7 @@ class SimulateQQ:
 
             return False
 
-    def parseHeartPkt(self):
+    def parsePollPkt(self):
         __doc__ = '''解析心跳包'''
 
         r = self.rPoll2.json()
@@ -359,7 +359,6 @@ class SimulateQQ:
                 # 收到好友的信息
                 if 'message' == poll_type:
                     recvMsg = value.get('content')[1]
-
                     print '>' * 50
                     print u'收到消息来自 %s 的消息: ' % value.get('from_uin')
                     print recvMsg
@@ -370,12 +369,10 @@ class SimulateQQ:
                     # 从机器人中获取回复
                     replyMsg = self.getReplyFromRobot(recvMsg)
                     if replyMsg:
-
-                        if __DEBUG_LEVEL__:
-                            print '<' * 50
-                            print u'机器人回复：'
-                            print replyMsg
-                            print '<' * 50
+                        print '<' * 50
+                        print u'机器人回复：'
+                        print replyMsg
+                        print '<' * 50
 
                         self.reply(msg = replyMsg)
 
@@ -401,7 +398,6 @@ class SimulateQQ:
             
         return replyMsg
 
-
     bSendingPollPke = False
     def _sendPollPkt(self, data, interval = poll_interval):
         __doc__ = '''...发送心跳包...'''
@@ -422,7 +418,7 @@ class SimulateQQ:
 
                     break
 
-            self.parseHeartPkt()
+            self.parsePollPkt()
 
             time.sleep(interval)
 
@@ -571,7 +567,7 @@ class SimulateQQ:
 
         resp = self.rsendmsg.json()
 
-        print resp.get('result')
+        print u'发送结果:' + resp.get('result')
 
         return 0 == resp.get('retcode')
 
@@ -619,3 +615,5 @@ if __name__ == '__main__':
         if qq.bSendingPollPke == False or msg == 'q' or msg == 'Q':
             qq.offline()
             break
+
+        qq.reply(msg=msg)
