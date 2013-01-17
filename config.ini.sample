@@ -1,0 +1,12 @@
+[account]
+qq=123
+pw=abc
+login_status=hidden
+
+[setting]
+debug_level=0
+poll_interval=1
+
+[proxy]
+http=http://211.142.236.131:80
+https=

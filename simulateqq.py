@@ -251,6 +251,8 @@ class SimulateQQ:
         
     # 第一次登录
     def login1(self):
+        __doc__ = u'第一次登录...'
+
         p = self.encodePassword(self.pw, self.uin, self.vc)
         params = {
                 'action' : '7-12-32903',
@@ -277,6 +279,9 @@ class SimulateQQ:
                 'webqq_type' : '10'
                 }
 
+        if __DEBUG_LEVEL__:
+            printDocString()
+
         self.rLogin1 = self.get(urls['login1'], params = params)
         resp = self.parseRespsonse(self.rLogin1)
 
@@ -288,6 +293,8 @@ class SimulateQQ:
 
     # 第二次登录
     def login2(self, status):
+        __doc__ = u'第二次登录...'
+
         r = r'{"status" : "%s", "ptwebqq" : "%s", "passwd_sig" : "", "clientid" : "%s", "psessionid" : null}'  \
                 % (status, self.cookies.get("ptwebqq"), clientid)
 
@@ -297,12 +304,18 @@ class SimulateQQ:
                 'r' : r
                 }
 
+        if __DEBUG_LEVEL__:
+            printDocString()
+
         self.rLogin2 = self.post(urls['login2'], data)
-        resp = self.rLogin2.json()
+
+        if not self.rLogin2:
+            return False
 
         # 根据返回的状态码判断是否登录成功
         if self.rLogin2.status_code == 200 :
 
+            resp = self.rLogin2.json()
             self.vfwebqq = resp['result']['vfwebqq']
             self.psessionid = resp['result']['psessionid']
 
@@ -474,22 +487,22 @@ class SimulateQQ:
     def reply(self):
         return self.sendMsg(to = self.recent_talk_friend)
 
-    def sendMsg(self, to, msg_id = random.randrange(start=9999999)):
+    def sendMsg(self, to, msg = u'', msg_id = random.randrange(start=9999999)):
         __doc__ = '''发送信息'''
 
         if not to:
             return False
     
-        msg = u''
-        while True:
-            s = raw_input("Send Message >> ")
-            if s == '':
-                break
-
-            msg += s + '\n'
-
         if msg == u'':
-            return True
+            while True:
+                s = raw_input("Send Message >> ")
+                if s == '':
+                    break
+
+                msg += s + '\n'
+
+            if msg == u'':
+                return True
 
         msg = convertToRawString(msg)
 
