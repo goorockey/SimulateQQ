@@ -4,9 +4,13 @@ qq=123
 ;qq密码的MD5值
 pw=900150983cd24fb0d6963f7d28e17f72
 ;登录状态
-login_status=hidden
+login_status=online
+
+[robot]
 ;使用的回复机器人，没有则为空
 robot=simsimi
+;使用机器人时的信息，没有则不输出
+robot_info=
 
 
 [setting]

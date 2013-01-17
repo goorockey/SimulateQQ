@@ -23,8 +23,6 @@ sys.setdefaultencoding('utf-8')
 
 configFile = '/config.ini'
 
-# 调试级
-__DEBUG_LEVEL__ = 1
 
 # api url
 urls = {
@@ -55,21 +53,25 @@ headers = {
         r'User-Agent' : r'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:18.0) Gecko/20100101 Firefox/18.0',
         }
 
+# 调试级
+__DEBUG_LEVEL__ = 1
 # 心跳包发送间隔, 单位为秒
-poll_interval = 1 
-
+poll_interval = 3 
 # 是否使用代理
 proxies = {}
 
 
 def parseConfig(cf):
+    global __DEBUG_LEVEL__
+    global poll_interval
+    global proxies
+
     __DEBUG_LEVEL__ = cf.getint('setting', 'debug_level')
     poll_interval = cf.getint('setting', 'poll_interval')
 
     proxies['http'] = cf.get('proxy', 'http')
     proxies['https'] = cf.get('proxy', 'https')
 
-    
 
 # 对密码做转换,pw为密码的一次MD5的值
 def encodePassword(pw, uin, verifycode):
@@ -131,27 +133,29 @@ class SimulateQQ:
     
     vc = '' # 验证码
     cookies = {}
-    skey = ''
     vfwebqq = ''
     psessionid = 'null'
-
-    curStatus = 'offline'
 
     user_info = {} # 用户信息
     friend_list = {} # 好友列表
     group_list = {} # 群组列表
 
+    curStatus = 'offline'
     recent_talk_friend = ''
+
     robot = ''
+    robotInfo = ''
 
     def __init__(self, user = '', pw = '', s = login_status, cf = None):
         if cf:
             self.uin = cf.get('account', 'qq')
             self.pw = cf.get('account', 'pw')
             s = cf.get('account', 'login_status')
-            self.robotModule = cf.get('account', 'robot')
+
+            self.robotModule = cf.get('robot', 'robot')
             if self.robotModule:
                 self.robot = __import__(self.robotModule)
+                self.robotInfo = cf.get('robot', 'robot_info')
 
         else:
             self.uin = user
@@ -352,17 +356,8 @@ class SimulateQQ:
                 poll_type = item.get('poll_type')
                 value = item.get('value')
 
-                # 好友状态改变
-                if 'buddies_status_change' == poll_type:
-                    status = value.get('status')
-
-                    if ('offline' == status) and (self.friend_list.get(i.get('uin'))):
-                            del self.friend_list[i.get('uin')]
-                    elif 'online' == status:
-                        pass
-
                 # 收到好友的信息
-                elif 'message' == poll_type:
+                if 'message' == poll_type:
                     recvMsg = value.get('content')[1]
 
                     print u'收到消息来自 %s 的消息: ' % value.get('from_uin')
@@ -380,12 +375,25 @@ class SimulateQQ:
 
                         self.reply(msg = replyMsg)
 
+                # 好友状态改变
+                elif 'buddies_status_change' == poll_type:
+                    status = value.get('status')
+
+                    if ('offline' == status) and (self.friend_list.get(value.get('uin'))):
+                            del self.friend_list[value.get('uin')]
+                    elif 'online' == status:
+                        pass
+
+
     # 从机器人获取回复
     def getReplyFromRobot(self, msg):
         replyMsg = ''
 
         if self.robot:
             replyMsg = self.robot.send(msg = msg)
+
+            if self.robotInfo:
+                replyMsg += '\n' + self.robotInfo
             
         return replyMsg
 
