@@ -546,7 +546,7 @@ class SimulateQQ:
                 if s == '':
                     break
 
-                msg += s + '\n'
+                msg += s + u'\n'
 
             if msg == u'':
                 return True
@@ -621,5 +621,5 @@ if __name__ == '__main__':
 
         if msg.upper() == 'Q':
             qq.offline()
-        else msg.upper() == 'T':
+        elif msg.upper() == 'T':
             qq.reply()
