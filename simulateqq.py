@@ -557,12 +557,14 @@ class SimulateQQ:
             return False
     
         if msg == u'':
+            msgList = []
             while True:
                 s = raw_input("Send Message>> ")
                 if s == '':
+                    msg = '\n'.join(msgList)
                     break
 
-                msg += s + u'\n'
+                msgList += s
 
             if msg == u'':
                 return True
