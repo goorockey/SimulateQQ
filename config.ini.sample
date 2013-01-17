@@ -1,12 +1,22 @@
 [account]
+;qq号
 qq=123
-pw=abc
+;qq密码的MD5值
+pw=900150983cd24fb0d6963f7d28e17f72
+;登录状态
 login_status=hidden
+;使用的回复机器人，没有则为空
+robot=simsimi
+
 
 [setting]
+;调试级
 debug_level=0
+;心跳包发送间隔，单位为秒
 poll_interval=1
 
+
 [proxy]
+;使用的代理,不用则为空
 http=http://211.142.236.131:80
 https=

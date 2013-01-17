@@ -13,6 +13,10 @@ from urllib import urlencode
 import time, thread
 import random
 
+# simsimi api
+import simsimi
+
+
 # 设置字符串编码默认为utf-8
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -65,6 +69,36 @@ def parseConfig(cf):
     proxies['http'] = cf.get('proxy', 'http')
     proxies['https'] = cf.get('proxy', 'https')
 
+    
+
+# 对密码做转换,pw为密码的一次MD5的值
+def encodePassword(pw, uin, verifycode):
+
+    # Insert '\x'
+    def hexchar2bin(s):
+        return (''.join([ chr(int(i, 16)) for i in re.findall('.{1,2}', s) ]))
+
+    def mymd5(s):
+        return md5(s).hexdigest().upper()
+
+    def uin2hex(uin):
+        maxlen = 16
+
+        # parse number in front
+        uin = re.match('^[0-9]*', uin).group()
+
+        # convert to hex
+        uin = str(hex(int(uin, 10)))[2:]
+
+        uin = uin[:maxlen]
+        uin = (maxlen - len(uin)) * '0' + uin
+
+        return hexchar2bin(uin)
+
+    ret = hexchar2bin(pw.upper()) 
+    ret = mymd5(ret + uin2hex(uin))
+    ret = mymd5(ret + verifycode.upper())
+    return ret
 
 # 打印文档字符串
 def printDocString():
@@ -108,13 +142,16 @@ class SimulateQQ:
     group_list = {} # 群组列表
 
     recent_talk_friend = ''
-
+    robot = ''
 
     def __init__(self, user = '', pw = '', s = login_status, cf = None):
         if cf:
             self.uin = cf.get('account', 'qq')
             self.pw = cf.get('account', 'pw')
             s = cf.get('account', 'login_status')
+            self.robotModule = cf.get('account', 'robot')
+            if self.robotModule:
+                self.robot = __import__(self.robotModule)
 
         else:
             self.uin = user
@@ -158,7 +195,7 @@ class SimulateQQ:
 
         self.cookies.update(resp.cookies.get_dict())
 
-        if __DEBUG_LEVEL__:
+        if __DEBUG_LEVEL__ >= 2:
             print u'===GET请求===，回复:\n%s' % resp.text
 
         return resp
@@ -173,39 +210,11 @@ class SimulateQQ:
 
         self.cookies.update(resp.cookies.get_dict())
 
-        if __DEBUG_LEVEL__:
+        if __DEBUG_LEVEL__ >= 2:
             print u'===POST请求===，回复:\n%s' % resp.text
 
         return resp
     
-    # 对密码做转换
-    def encodePassword(self, pw, uin, verifycode):
-
-        # Insert '\x'
-        def hexchar2bin(s):
-            return (''.join([ chr(int(i, 16)) for i in re.findall('.{1,2}', s) ]))
-
-        def mymd5(s):
-            return md5(s).hexdigest().upper()
-
-        def uin2hex(uin):
-            maxlen = 16
-
-            # parse number in front
-            uin = re.match('^[0-9]*', uin).group()
-
-            # convert to hex
-            uin = str(hex(int(uin, 10)))[2:]
-
-            uin = uin[:maxlen]
-            uin = (maxlen - len(uin)) * '0' + uin
-
-            return hexchar2bin(uin)
-
-        ret = hexchar2bin(mymd5(pw)) 
-        ret = mymd5(ret + uin2hex(uin))
-        ret = mymd5(ret + verifycode.upper())
-        return ret
 
 
     # 解析回复信息
@@ -234,7 +243,7 @@ class SimulateQQ:
         else:
             self.vc = self.getvc()
 
-        if __DEBUG_LEVEL__:
+        if __DEBUG_LEVEL__ >= 2:
             print u'验证码为', self.vc
             
     # 获取验证码图片
@@ -253,7 +262,7 @@ class SimulateQQ:
     def login1(self):
         __doc__ = u'第一次登录...'
 
-        p = self.encodePassword(self.pw, self.uin, self.vc)
+        p = encodePassword(self.pw, self.uin, self.vc)
         params = {
                 'action' : '7-12-32903',
                 'aid' : aid,
@@ -279,8 +288,7 @@ class SimulateQQ:
                 'webqq_type' : '10'
                 }
 
-        if __DEBUG_LEVEL__:
-            printDocString()
+        printDocString()
 
         self.rLogin1 = self.get(urls['login1'], params = params)
         resp = self.parseRespsonse(self.rLogin1)
@@ -304,8 +312,7 @@ class SimulateQQ:
                 'r' : r
                 }
 
-        if __DEBUG_LEVEL__:
-            printDocString()
+        printDocString()
 
         self.rLogin2 = self.post(urls['login2'], data)
 
@@ -356,10 +363,31 @@ class SimulateQQ:
 
                 # 收到好友的信息
                 elif 'message' == poll_type:
+                    recvMsg = value.get('content')[1]
+
                     print u'收到消息来自 %s 的消息: ' % value.get('from_uin')
-                    print value.get('content')[1]
+                    print recvMsg
 
                     self.recent_talk_friend = value.get('from_uin')
+
+                    # 从机器人中获取回复
+                    replyMsg = self.getReplyFromRobot(recvMsg)
+                    if replyMsg:
+
+                        if __DEBUG_LEVEL__:
+                            print u'机器人回复：'
+                            print replyMsg
+
+                        self.reply(msg = replyMsg)
+
+    # 从机器人获取回复
+    def getReplyFromRobot(self, msg):
+        replyMsg = ''
+
+        if self.robot:
+            replyMsg = self.robot.send(msg = msg)
+            
+        return replyMsg
 
 
     def _sendHeartPkt(self, data, interval = poll_interval):
@@ -406,7 +434,7 @@ class SimulateQQ:
         return True
 
     def getUserInfo(self, u = ''):
-        '''获取用户信息'''
+        __doc__ = '''获取用户信息'''
 
         if u == '':
             u = self.uin
@@ -419,6 +447,8 @@ class SimulateQQ:
                     'vfwebqq' : self.vfwebqq
                  }
         
+        printDocString()
+
         self.rGetUserInfo = self.get(urls['getuinfo'], params = params)
         resp = self.parseRespsonse(self.rGetUserInfo)
 
@@ -426,7 +456,8 @@ class SimulateQQ:
         resp = self.rGetUserInfo.json()
         if resp:
             self.user_info = resp.get('result')
-            print resp
+            if __DEBUG_LEVEL__ >= 2:
+                print resp.get('result')
 
         return resp.get('retcode') == 0
     
@@ -443,6 +474,8 @@ class SimulateQQ:
         resp = self.rGetFrdList.json()
         if resp:
             self.friend_list = resp.get('result')
+            if __DEBUG_LEVEL__ >= 2:
+                print resp.get('result')
 
         return resp.get('retcode') == 0
 
@@ -457,7 +490,10 @@ class SimulateQQ:
 
         # 解析返回信息
         resp = self.rGetGrpList.json()
-        self.group_list = resp.get('result')
+        if resp:
+            self.group_list = resp.get('result')
+            if __DEBUG_LEVEL__ >= 2:
+                print resp.get('result')
 
         return resp.get('retcode') == 0
 
@@ -484,8 +520,8 @@ class SimulateQQ:
 
         return qq 
 
-    def reply(self):
-        return self.sendMsg(to = self.recent_talk_friend)
+    def reply(self, msg = u''):
+        return self.sendMsg(to = self.recent_talk_friend, msg = msg)
 
     def sendMsg(self, to, msg = u'', msg_id = random.randrange(start=9999999)):
         __doc__ = '''发送信息'''
@@ -565,3 +601,4 @@ if __name__ == '__main__':
     parseConfig(cf)
 
     qq = SimulateQQ(cf = cf)
+
