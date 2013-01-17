@@ -1,4 +1,4 @@
 SimulateQQ
 ==========
 
-qq机器人
+qq robot
